@@ -180,7 +180,9 @@ abstract class TestCase extends FoundationTestCase
      */
     protected function closeAllButPrimary($browsers)
     {
-        $browsers->slice(1)->each->quit();
+        $browsers->slice(1)->each(function ($browser, $key) {
+            $browser->quit();
+        });
 
         return $browsers->take(1);
     }
@@ -192,7 +194,9 @@ abstract class TestCase extends FoundationTestCase
      */
     public static function closeAll()
     {
-        Collection::make(static::$browsers)->each->quit();
+        Collection::make(static::$browsers)->each(function ($browser, $key) {
+            $browser->quit();
+        });
 
         static::$browsers = collect();
     }
@@ -204,9 +208,37 @@ abstract class TestCase extends FoundationTestCase
      */
     protected function createWebDriver()
     {
-        return retry(5, function () {
+        return $this->retry(5, function () {
             return $this->driver();
         }, 50);
+    }
+
+    /**
+     * Retry an operation a given number of times.
+     *
+     * @param  int  $times
+     * @param  callable  $callback
+     * @param  int  $sleep
+     * @return mixed
+     *
+     * @throws \Exception
+     */
+    private function retry($times, callable $callback, $sleep = 0)
+    {
+        $times--;
+        beginning:
+        try {
+            return $callback();
+        } catch (Exception $e) {
+            if (! $times) {
+                throw $e;
+            }
+            $times--;
+            if ($sleep) {
+                usleep($sleep * 1000);
+            }
+            goto beginning;
+        }
     }
 
     /**
